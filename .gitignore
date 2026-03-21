@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.uv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.bak
+*.tmp
+
+# Large files (distributed via GitHub Releases)
+fooddb.sqlite
+data/raw/
+data/output/
+
+# Secrets
+.env
+
+# Private (billing & internal docs — Gitea only)
+billing.py
+BILLING.md
+MCP_BILLING_PLAN.md
+scripts/setup_stripe_products.py
+docs/BILLING_FLOW.md
+DEPLOY_PLAN.md
+TODO.md
+docs/DESIGN_mobile_app.md
+docs/article_draft.md

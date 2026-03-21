@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fooddb-jp — 日本食品標準成分表 API</title>
+<meta name="description" content="日本食品標準成分表（八訂増補2023）を REST API と MCP で提供。2,541食品 × 353成分。AI エージェントに栄養の知識を。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --bg-card: #12121a;
+    --bg-elevated: #1a1a2e;
+    --border: #2a2a3e;
+    --text: #e4e4ef;
+    --text-muted: #8888a0;
+    --accent: #4ade80;
+    --accent-glow: rgba(74, 222, 128, 0.15);
+    --accent-2: #60a5fa;
+    --accent-3: #f97316;
+    --gradient: linear-gradient(135deg, #4ade80, #60a5fa);
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+
+  body {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* --- Nav --- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(16px);
+    background: rgba(10, 10, 15, 0.8);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+  }
+  nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand {
+    font-weight: 800;
+    font-size: 1.2rem;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .nav-links { display: flex; gap: 24px; align-items: center; }
+  .nav-links a { color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+  /* --- Hero --- */
+  .hero {
+    text-align: center;
+    padding: 100px 0 60px;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .hero-badge .dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 .gradient {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto 36px;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* --- Buttons --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--gradient);
+    color: #000;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); text-decoration: none; }
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); text-decoration: none; }
+
+  /* --- Stats Bar --- */
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    padding: 48px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* --- Section --- */
+  section { padding: 80px 0; }
+  .section-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .section-subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 48px;
+    font-size: 1rem;
+  }
+
+  /* --- Features --- */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  .feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .feature-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+  .feature-card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* --- Pricing --- */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+  .price-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    position: relative;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .price-card:hover { transform: translateY(-2px); }
+  .price-card.featured {
+    border-color: var(--accent);
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+  .price-card .badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gradient);
+    color: #000;
+    padding: 4px 16px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .price-card h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; }
+  .price-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .price-period { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; }
+  .price-features { list-style: none; margin-bottom: 28px; }
+  .price-features li {
+    padding: 6px 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .price-features li::before {
+    content: '✓';
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .price-card .btn { width: 100%; justify-content: center; }
+
+  /* --- Code Block --- */
+  .code-section { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; }
+  .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .code-header span { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+  pre .key { color: var(--accent-2); }
+  pre .str { color: var(--accent); }
+  pre .comment { color: #555; }
+
+  /* --- Demo --- */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 20px;
+  }
+  @media (max-width: 540px) {
+    .demo-grid { grid-template-columns: 1fr; }
+  }
+
+  /* --- Footer --- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  footer a { color: var(--text-muted); }
+  .footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; }
+
+  /* --- FAQ --- */
+  .faq-list { max-width: 700px; margin: 0 auto; }
+  .faq-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    background: var(--bg-card);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .faq-item:hover { border-color: #3a3a5e; }
+  .faq-item[open] { border-color: var(--accent); }
+  .faq-item summary {
+    padding: 16px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::after {
+    content: '+';
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+  .faq-item[open] summary::after {
+    content: '−';
+    color: var(--accent);
+  }
+  .faq-item p {
+    padding: 0 20px 16px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .faq-item code {
+    background: var(--bg-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    .stats { gap: 24px; }
+    .nav-links { gap: 12px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <span class="nav-brand">🍙 fooddb-jp</span>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#setup">Setup</a>
+      <a href="#faq">FAQ</a>
+      <a href="/docs" class="btn btn-secondary" style="padding:8px 16px; font-size:0.85rem;">API Docs</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge"><span class="dot"></span> v0.2.0 — Live on Cloudflare Edge</div>
+    <h1>AI に<span class="gradient">栄養の知識</span>を。</h1>
+    <p>日本食品標準成分表（八訂増補2023）を REST API と MCP で提供。<br>2,541 食品 × 353 成分 — 文科省公式データを構造化。</p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn btn-primary">🚀 Get API Key</a>
+      <a href="https://github.com/takakix2/fooddb-jp" class="btn btn-secondary">⭐ GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat"><div class="stat-value">2,541</div><div class="stat-label">食品</div></div>
+  <div class="stat"><div class="stat-value">353</div><div class="stat-label">成分タグ (INFOODS)</div></div>
+  <div class="stat"><div class="stat-value">440,441</div><div class="stat-label">レコード</div></div>
+  <div class="stat"><div class="stat-value">86 µs</div><div class="stat-label">平均レイテンシ</div></div>
+</div>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <h2 class="section-title">Why fooddb-jp?</h2>
+    <p class="section-subtitle">日本の食品データを、世界中の AI アプリケーションから利用可能に。</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>MCP Native</h3>
+        <p>Model Context Protocol に対応。Claude、Cursor 等の AI エージェントから <code>uvx fooddb-jp</code> で即接続。写真からカロリー計算も。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔍</span>
+        <h3>4段階ハイブリッド検索</h3>
+        <p>LIKE → FTS5 → エイリアス(31,504件) → 交差検索。「鶏むね」「チキンブレスト」どちらでも正確にヒット。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🌏</span>
+        <h3>INFOODS Tagname 準拠</h3>
+        <p>FAO/INFOODS 国際標準の成分識別子を採用。USDA FoodData Central と並ぶ構造化品質。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>超低レイテンシ</h3>
+        <p>食品詳細クエリ 86µs / 11,600 QPS。SQLite の読み取り特化アーキテクチャ。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3>栄養計算 API</h3>
+        <p>複数食品を一括で栄養計算。食事写真 → AI が食品識別 → API で栄養計算の完全パイプライン。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🏛️</span>
+        <h3>政府公式データ</h3>
+        <p>文部科学省公表の食品標準成分表（八訂増補2023）を完全収録。本表 + アミノ酸 + 脂肪酸 + 炭水化物の全11テーブル。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing" style="background: var(--bg-elevated); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <h2 class="section-title">Pricing</h2>
+    <p class="section-subtitle">Free プランで今すぐ始められます。</p>
+    <div class="pricing-grid">
+
+      <div class="price-card">
+        <h3>Free</h3>
+        <div class="price-value">¥0</div>
+        <div class="price-period">forever</div>
+        <ul class="price-features">
+          <li>100 リクエスト / 日</li>
+          <li>全エンドポイントアクセス</li>
+          <li>MCP 対応</li>
+          <li>API キー不要</li>
+        </ul>
+        <a href="/docs" class="btn btn-secondary">Start Free →</a>
+      </div>
+
+      <div class="price-card featured">
+        <span class="badge">Most Popular</span>
+        <h3>Developer</h3>
+        <div class="price-value">$9.99</div>
+        <div class="price-period">/ month</div>
+        <ul class="price-features">
+          <li>10,000 リクエスト / 日</li>
+          <li>全エンドポイントアクセス</li>
+          <li>MCP 対応</li>
+          <li>専用 API キー</li>
+          <li>使用量ダッシュボード</li>
+        </ul>
+        <a href="/billing/checkout?plan=developer" class="btn btn-primary">Subscribe →</a>
+      </div>
+
+      <div class="price-card">
+        <h3>Pro</h3>
+        <div class="price-value">$29.99</div>
+        <div class="price-period">/ month</div>
+        <ul class="price-features">
+          <li>100,000 リクエスト / 日</li>
+          <li>全エンドポイントアクセス</li>
+          <li>MCP 対応</li>
+          <li>専用 API キー</li>
+          <li>使用量ダッシュボード</li>
+          <li>優先サポート</li>
+        </ul>
+        <a href="/billing/checkout?plan=pro" class="btn btn-secondary">Subscribe →</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- MCP Setup -->
+<section id="setup">
+  <div class="container">
+    <h2 class="section-title">⚡ 3分でセットアップ</h2>
+    <p class="section-subtitle">uv をインストールして、MCP 設定をコピペするだけ。</p>
+
+    <div class="demo-grid">
+      <!-- Step 1: Install uv -->
+      <div class="code-section">
+        <div class="code-header">
+          <span>Step 1 — Install uv</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></pre>
+      </div>
+
+      <!-- Step 2: MCP Config -->
+      <div class="code-section">
+        <div class="code-header">
+          <span>Step 2 — Add to mcp_config.json</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code>{
+  <span class="key">"fooddb-jp"</span>: {
+    <span class="key">"command"</span>: <span class="str">"uvx"</span>,
+    <span class="key">"args"</span>: [<span class="str">"fooddb-jp"</span>],
+    <span class="key">"env"</span>: {
+      <span class="key">"FOODDB_API_KEY"</span>: <span class="str">"fdb_your_key_here"</span>
+    }
+  }
+}</code></pre>
+      </div>
+    </div>
+
+    <div style="margin-top: 32px;">
+      <h3 style="margin-bottom: 16px; font-size: 1.1rem;">REST API — curl でも使えます</h3>
+      <div class="code-section">
+        <div class="code-header">
+          <span>Examples</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code><span class="comment"># 食品検索</span>
+curl "https://fooddb.navii.online/foods/search/オートミール"
+
+<span class="comment"># 成分値取得</span>
+curl "https://fooddb.navii.online/foods/1004"
+
+<span class="comment"># 栄養計算（オートミール100g + 卵60g）</span>
+curl "https://fooddb.navii.online/calculate?foods=1004:100,12004:60"
+
+<span class="comment"># ビタミンCランキング</span>
+curl "https://fooddb.navii.online/ranking/VITC?limit=5"</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background: var(--bg-elevated); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <h2 class="section-title">FAQ</h2>
+    <p class="section-subtitle">よくある質問</p>
+    <div class="faq-list">
+
+      <details class="faq-item">
+        <summary>データの出典は？</summary>
+        <p>文部科学省が公開する「日本食品標準成分表（八訂）増補2023年」を構造化しています。元データは <a href="https://fooddb.mext.go.jp/">文科省 食品成分データベース</a> で公開されており、政府標準利用規約に基づき二次利用が可能です（CC BY 4.0 相当）。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Free プランに制限はありますか？</summary>
+        <p>全エンドポイントにアクセス可能です。日次 100 リクエストまで無料。API キーなしで即座に利用開始できます。商用利用も Free プランの範囲内なら問題ありません。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>課金サイクルと支払い方法は？</summary>
+        <p>月額サブスクリプション（Stripe 経由）。クレジットカード / デビットカードに対応。決済完了後、API キーが自動発行されます。日次リクエストカウンタは UTC 0:00 にリセットされます。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>解約はいつでもできますか？</summary>
+        <p>はい。サブスクリプションはいつでもキャンセル可能で、契約期間終了まで利用できます。解約は <code>/billing/portal?email=登録メールアドレス</code> から Stripe の管理画面で行えます。解約時に API キーは自動的に無効化されます。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>API キーを紛失しました</summary>
+        <p>決済時に使用したメールアドレスで再表示できます: <code>/billing/key?email=登録メールアドレス</code>。API キーは決済完了ページでも表示されますが、安全のため必ずコピーして保存してください。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>MCP とは何ですか？</summary>
+        <p>Model Context Protocol — AI エージェント（Claude、Cursor 等）が外部ツールに接続するための標準規格です。fooddb-jp は MCP に対応しており、<code>uvx fooddb-jp</code> で AI に栄養データベースの知識を追加できます。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>SLA はありますか？</summary>
+        <p>現時点では SLA は提供していません。インフラは systemd + Cloudflare Tunnel で冗長化されており、高い稼働率を維持しています。エンタープライズ向け SLA が必要な場合はお問い合わせください。</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>利用規約</summary>
+        <p>本 API は食品栄養データの参照用途に提供されます。医療上の判断に使用しないでください。データの正確性は文科省の原典に準じますが、変換・構造化の過程で誤差が生じる可能性があります。API の悪用（過剰リクエスト、リバースエンジニアリング等）は禁止します。詳細な利用規約は準備中です。</p>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="/docs">API Docs</a>
+      <a href="https://github.com/takakix2/fooddb-jp">GitHub</a>
+      <a href="https://fooddb.mext.go.jp/">文科省 食品成分DB</a>
+    </div>
+    <p>Data: 文部科学省「日本食品標準成分表（八訂）増補2023年」(CC BY 4.0 相当)</p>
+    <p style="margin-top: 8px;">© 2026 fooddb-jp</p>
+  </div>
+</footer>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-section').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2000);
+  });
+}
+</script>
+
+</body>
+</html>
