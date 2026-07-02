@@ -1,0 +1,52 @@
+[project]
+name = "fooddb-jp"
+version = "0.2.0"
+description = "日本食品標準成分表（八訂増補2023）MCP Server & REST API — 2,541食品 × 353成分"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+readme = "README.md"
+keywords = ["food", "nutrition", "japanese", "mcp", "api", "infoods"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+# MCP Server に必要な最小依存（uvx ユーザー向け）
+dependencies = [
+    "httpx>=0.28",
+    "mcp>=1.26.0",
+]
+
+# API サーバー用の追加依存（開発者・デプロイ用）
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.115",
+    "openpyxl>=3.1.5",
+    "python-dotenv>=1.2.2",
+    "stripe>=14.4.1",
+    "uvicorn[standard]>=0.34",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+# uvx fooddb-jp で MCP Server が起動する
+[project.scripts]
+fooddb-jp = "mcp_server:main"
+
+[project.urls]
+Homepage = "https://fooddb.navii.online"
+Repository = "https://github.com/takakix2/fooddb-jp"
+Documentation = "https://fooddb.navii.online/docs"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+include = ["mcp_server.py"]
